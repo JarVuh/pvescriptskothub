@@ -3,14 +3,12 @@ name: Build and Publish Docker Image
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: {} # Явно указываем пустой объект
+  workflow_dispatch: {}
   schedule:
     - cron: '0 0 * * 0'
 
 env:
   REGISTRY: ghcr.io
-  # ВАЖНО: Впишите сюда ваш логин и название образа СТРОГО МАЛЕНЬКИМИ БУКВАМИ
-  # Например: username/pvescriptslocal-docker
   IMAGE_NAME: jarvuh/pvescriptskothub
 
 jobs:
@@ -34,6 +32,25 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: "." # Обернули в кавычки для надежности
+          context: "."
           push: true
           tags: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+
+      # --- НОВЫЕ ШАГИ ДЛЯ СКАЧИВАНИЯ ФАЙЛОМ ---
+      
+      - name: Pull and Save Image to File
+        run: |
+          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          # Скачиваем только что собранный образ
+          docker pull $FULL_IMAGE_NAME
+          # Сохраняем в tar-архив
+          docker save -o image.tar $FULL_IMAGE_NAME
+          # Максимально сжимаем архив с помощью gzip для медленного интернета
+          gzip -9 image.tar
+
+      - name: Upload Docker Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pvescriptskothub-tar # Название архива, который вы будете скачивать
+          path: image.tar.gz
+          retention-days: 3 # Файл удалится через 3 дня, чтобы не занимать место
