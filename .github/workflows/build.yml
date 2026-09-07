@@ -1,0 +1,40 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: {} # Явно указываем пустой объект
+  schedule:
+    - cron: '0 0 * * 0'
+
+env:
+  REGISTRY: ghcr.io
+  # ВАЖНО: Впишите сюда ваш логин и название образа СТРОГО МАЛЕНЬКИМИ БУКВАМИ
+  # Например: username/pvescriptslocal-docker
+  IMAGE_NAME: jarvuh/pvescriptskothub
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: "." # Обернули в кавычки для надежности
+          push: true
+          tags: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" # Обернули в к
+          авычки
