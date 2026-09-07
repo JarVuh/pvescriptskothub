@@ -32,18 +32,15 @@ jobs:
       # Строим образ локально и сразу тегируем его
       - name: Build Docker image locally
         run: |
-          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          docker build -t $FULL_IMAGE_NAME .
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest .
 
-      # Сохраняем уже готовый локальный образ в файл и сжимаем его
+      # 2. Упаковываем его (теперь docker save отработает без ошибок)
       - name: Save Image to File
         run: |
-          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          docker save -o image.tar $FULL_IMAGE_NAME
+          docker save -o image.tar ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           gzip -9 image.tar
 
-      # Отправляем этот же локальный образ в GHCR (чтобы не собирать заново)
+      # 3. Пушим в репозиторий ghcr.io
       - name: Push Image to GHCR
         run: |
-          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          docker push $FULL_IMAGE_NAME
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
