@@ -18,7 +18,7 @@ jobs:
       contents: read
       packages: write
 
-    steps:
+        steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -29,28 +29,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: "."
-          push: true
-          tags: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-
-      # --- НОВЫЕ ШАГИ ДЛЯ СКАЧИВАНИЯ ФАЙЛОМ ---
-      
-      - name: Pull and Save Image to File
+      # Строим образ локально и сразу тегируем его
+      - name: Build Docker image locally
         run: |
           FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          # Скачиваем только что собранный образ
-          docker pull $FULL_IMAGE_NAME
-          # Сохраняем в tar-архив
+          docker build -t $FULL_IMAGE_NAME .
+
+      # Сохраняем уже готовый локальный образ в файл и сжимаем его
+      - name: Save Image to File
+        run: |
+          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
           docker save -o image.tar $FULL_IMAGE_NAME
-          # Максимально сжимаем архив с помощью gzip для медленного интернета
           gzip -9 image.tar
 
-      - name: Upload Docker Image Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pvescriptskothub-tar # Название архива, который вы будете скачивать
-          path: image.tar.gz
-          retention-days: 3 # Файл удалится через 3 дня, чтобы не занимать место
+      # Отправляем этот же локальный образ в GHCR (чтобы не собирать заново)
+      - name: Push Image to GHCR
+        run: |
+          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          docker push $FULL_IMAGE_NAME
