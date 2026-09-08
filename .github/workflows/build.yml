@@ -8,7 +8,7 @@ on:
     - cron: '0 0 * * 0' # Запуск каждое воскресенье в 00:00
 
 env:
-  IMAGE_NAME: JarVuh/pvescriptskothub
+  IMAGE_NAME: jarvuh/pvescriptskothub
 
 jobs:
   build-and-push-image:
