@@ -38,4 +38,4 @@ jobs:
           # Явно пишем docker.io/, чтобы билдкс не пытался искать хост "JarVuh"
           tags: "docker.io/${{ env.IMAGE_NAME }}:latest"
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
