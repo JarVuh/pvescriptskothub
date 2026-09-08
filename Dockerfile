@@ -1,34 +1,53 @@
-FROM node:20-bookworm-slim
+# 1. Используем Node.js 22+, как требуется в системных требованиях проекта
+FROM node:22-bookworm-slim
 
-# 1. Устанавливаем все нужные утилиты, инструменты сборки (python/make) и openssl (для БД/Prisma)
+# 2. Устанавливаем системные зависимости
 RUN apt-get update && \
-    apt-get install -y git openssh-client sshpass rsync python3 build-essential openssl && \
+    apt-get install -y --no-install-recommends \
+    git \
+    openssh-client \
+    sshpass \
+    rsync \
+    python3 \
+    build-essential \
+    openssl && \
     rm -rf /var/lib/apt/lists/*
 
-# 2. Отключаем интерактивный запрос SSH (чтобы rsync/ssh не зависали с вопросом yes/no)
+# 3. Настраиваем SSH для автоматизации (без интерактива)
 RUN mkdir -p /root/.ssh && \
-    echo "StrictHostKeyChecking no\nUserKnownHostsFile /dev/null" > /root/.ssh/config
+    echo "StrictHostKeyChecking no\nUserKnownHostsFile /dev/null" > /root/.ssh/config && \
+    chmod 700 /root/.ssh
 
 WORKDIR /app
 
-# Клонируем код
-RUN git clone https://github.com/community-scripts/ProxmoxVE-Local.git .
+# 4. Рекомендуемый подход: сначала копируем файлы манифестов для кеширования слоев
+COPY package*.json ./
 
-# Устанавливаем зависимости
-RUN npm install
+# Устанавливаем зависимости (включая devDependencies для сборки Next.js)
+RUN npm ci
 
-# Копируем базовый конфиг
-RUN cp .env.example .env
+# 5. Копируем остальной исходный код приложения
+COPY . .
 
-# 3. Принудительно заставляем сервер слушать все интерфейсы, а не только внутренний
+# Копируем дефолтный .env, если его нет
+RUN cp -n .env.example .env || true
+
+# 6. ВАЖНО: Генерируем Prisma Client перед сборкой приложения
+RUN npx prisma generate
+
+# Настройки окружения
 ENV HOST=0.0.0.0
 ENV PORT=3000
+ENV NODE_ENV=production
 
-# Собираем проект
+# 7. Собираем Next.js / tRPC приложение
 RUN npm run build
 
-# Создаем папки для маппинга томов
+# 8. Создаем директории для данных и скриптов
 RUN mkdir -p data scripts && chmod 755 data scripts
+
+# Объявляем тома, чтобы SQLite БД и скачанные скрипты не стирались при перезапуске
+VOLUME ["/app/data", "/app/scripts"]
 
 EXPOSE 3000
 
