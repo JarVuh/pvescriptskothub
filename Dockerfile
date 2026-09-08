@@ -13,7 +13,7 @@ RUN mkdir -p /root/.ssh && \
 WORKDIR /app
 
 # 3. Клонируем исходный код оригинального приложения
-RUN git clone https://github.com .
+RUN git clone https://github.com/community-scripts/ProxmoxVE-Local.git .
 
 # 4. Устанавливаем зависимости и копируем дефолтный конфиг окружения
 RUN npm install && cp .env.example .env
