@@ -1,4 +1,4 @@
-name: Build and Publish Docker Image
+name: Build and Publish Docker Image to Docker Hub
 
 on:
   push:
@@ -8,51 +8,33 @@ on:
     - cron: '0 0 * * 0'
 
 env:
-  REGISTRY: ghcr.io
+  # Название вашего репозитория на Docker Hub (формат: логин/имя_репозитория)
   IMAGE_NAME: jarvuh/pvescriptskothub
 
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Настройка Docker Buildx (необходима для быстрой сборки и правильного экспорта)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to the Container registry
+      # Авторизация на Docker Hub с использованием секретов
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Исправлено: собираем образ, пушим его в GHCR и ОДНОВРЕМЕННО загружаем в локальный Docker-демон
+      # Сборка образа и его отправка на Docker Hub
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: "."
           push: true
-          load: true # <- ВАЖНО: это исправит ошибку "No such image" на шаге сохранения
-          tags: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          cache-from: type=gha # Включает кэширование, чтобы повторные сборки летали
+          tags: "${{ env.IMAGE_NAME }}:latest"
+          cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      # Исправлено: убрали локальные переменные внутри run, которые приводили к падению логов в Bash
-      - name: Save Image to File
-        run: |
-          docker save -o image.tar ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          gzip -9 image.tar
-
-      - name: Upload Docker Image Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pvescriptskothub-tar
-          path: image.tar.gz
-          retention-days: 3
