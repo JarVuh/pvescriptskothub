@@ -1,54 +1,45 @@
-# 1. Используем Node.js 22+, как требуется в системных требованиях проекта
-FROM node:22-bookworm-slim
+FROM node:20-bookworm-slim
 
-# 2. Устанавливаем системные зависимости
+# Устанавливаем системные зависимости и легковесный init-процесс (tini)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    git \
-    openssh-client \
-    sshpass \
-    rsync \
-    python3 \
-    build-essential \
-    openssl && \
+    apt-get install -y git openssh-client sshpass rsync python3 build-essential openssl tini && \
     rm -rf /var/lib/apt/lists/*
 
-# 3. Настраиваем SSH для автоматизации (без интерактива)
+# Настраиваем SSH-клиент (используем printf, так как echo в sh не понимает \n)
 RUN mkdir -p /root/.ssh && \
-    echo "StrictHostKeyChecking no\nUserKnownHostsFile /dev/null" > /root/.ssh/config && \
+    printf "StrictHostKeyChecking no\nUserKnownHostsFile /dev/null\n" > /root/.ssh/config && \
     chmod 700 /root/.ssh
 
 WORKDIR /app
 
-# 4. Рекомендуемый подход: сначала копируем файлы манифестов для кеширования слоев
-COPY package*.json ./
+# Клонируем репозиторий 
+RUN git clone https://github.com .
 
-# Устанавливаем зависимости (включая devDependencies для сборки Next.js)
-RUN npm install
+# Устанавливаем зависимости и копируем дефолтный конфиг
+RUN npm install && cp .env.example .env
 
-# 5. Копируем остальной исходный код приложения
-COPY . .
-
-# Копируем дефолтный .env, если его нет
-RUN cp -n .env.example .env || true
-
-# 6. ВАЖНО: Генерируем Prisma Client перед сборкой приложения
+# Генерируем типы Prisma Client
 RUN npx prisma generate
 
-# Настройки окружения
+# Задаем окружение
 ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV NODE_ENV=production
 
-# 7. Собираем Next.js / tRPC приложение
+# Собираем Next.js приложение
 RUN npm run build
 
-# 8. Создаем директории для данных и скриптов
-RUN mkdir -p data scripts && chmod 755 data scripts
-
-# Объявляем тома, чтобы SQLite БД и скачанные скрипты не стирались при перезапуске
+# Объявляем папки как постоянные тома (Volumes)
 VOLUME ["/app/data", "/app/scripts"]
+
+# Копируем наш скрипт запуска
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 3000
 
+# Используем tini как PID 1, который запускает entrypoint
+ENTRYPOINT ["/usr/bin/tini", "--", "entrypoint.sh"]
+
+# Команда по умолчанию, которая передастся в entrypoint.sh как параметр "$@"
 CMD ["npm", "start"]
