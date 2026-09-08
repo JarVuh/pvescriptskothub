@@ -24,7 +24,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Устанавливаем зависимости (включая devDependencies для сборки Next.js)
-RUN npm ci
+RUN npm install
 
 # 5. Копируем остальной исходный код приложения
 COPY . .
