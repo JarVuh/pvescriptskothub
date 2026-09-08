@@ -9,7 +9,7 @@ on:
 
 env:
   # Название вашего репозитория на Docker Hub (формат: логин/имя_репозитория)
-  IMAGE_NAME: jarvuh/pvescriptskothub
+  IMAGE_NAME: JarVuh/pvescriptskothub
 
 jobs:
   build-and-push-image:
