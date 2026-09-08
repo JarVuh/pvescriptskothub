@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
   workflow_dispatch: {}
   schedule:
-    - cron: '0 0 * * 0' # Запуск каждое воскресенье в 00:00
+    - cron: '0 0 * * 0'
 
 env:
   IMAGE_NAME: jarvuh/pvescriptskothub
@@ -18,24 +18,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Принудительно проверяем, передались ли секреты (если они пустые, билд упадет тут с понятной ошибкой)
+      - name: Verify Secrets Availability
+        run: |
+          if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ] || [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            echo "КРИТИЧЕСКАЯ ОШИБКА: GitHub Actions не видит ваши секреты DOCKERHUB_USERNAME или DOCKERHUB_TOKEN!"
+            echo "Проверьте вкладку Settings -> Secrets and variables -> Actions в вашем репозитории."
+            exit 1
+          fi
+
+      # Прямая авторизация через официальный Docker CLI (минуя сторонние экшены)
+      - name: Authenticate in Docker Hub
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      # Инициализируем стандартный системный сборщик
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Авторизация на Docker Hub с использованием секретов репозитория
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # Сборка образа и его отправка на Docker Hub (Используем стабильный v6)
+      # Сборка и отправка
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: "."
-          file: "./Dockerfile"
+          context: .
+          file: ./Dockerfile
           push: true
-          # Явно пишем docker.io/, чтобы билдкс не пытался искать хост "JarVuh"
-          tags: "docker.io/${{ env.IMAGE_NAME }}:latest"
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
+          tags: "${{ env.IMAGE_NAME }}:latest"
