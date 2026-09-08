@@ -8,7 +8,7 @@ on:
     - cron: '0 0 * * 0'
 
 env:
-  IMAGE_NAME: jarvuh/pvescriptskothub
+  IMAGE_NAME: jarvuv/pvescriptskothub
 
 jobs:
   build-and-push-image:
