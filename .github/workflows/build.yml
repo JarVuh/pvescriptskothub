@@ -5,10 +5,9 @@ on:
     branches: [ "main" ]
   workflow_dispatch: {}
   schedule:
-    - cron: '0 0 * * 0'
+    - cron: '0 0 * * 0' # Запуск каждое воскресенье в 00:00
 
 env:
-  # Название вашего репозитория на Docker Hub (формат: логин/имя_репозитория)
   IMAGE_NAME: JarVuh/pvescriptskothub
 
 jobs:
@@ -22,18 +21,19 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Авторизация на Docker Hub с использованием секретов
+      # Авторизация на Docker Hub с использованием секретов репозитория
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Сборка образа и его отправка на Docker Hub
+      # Сборка образа и его отправка на Docker Hub (Используем стабильный v6)
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: "."
+          file: "./Dockerfile"
           push: true
           tags: "${{ env.IMAGE_NAME }}:latest"
           cache-from: type=gha
